@@ -1,39 +1,123 @@
-import { NEW_PHONES, COLORS, MARGIN } from "./catalog.js";
+import { getPhones, getAllColors, resolvePhoneImage, MARGIN } from "./storage.js";
 import { createViewer } from "./viewer.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const formatCOP = (n) => "$" + n.toLocaleString("es-CO");
+const escapeHTML = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+}[char]));
+const colorHex = (color) => /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#888888";
 
-const storagesOf = (phone) => [...new Set(phone.variants.map((v) => v.storage))];
-const minPrice = (phone) => Math.min(...phone.variants.map((v) => v.price)) + MARGIN;
+const storagesOf = (phone) => [...new Set((phone.variants || []).map((v) => v.storage))];
+const minPrice = (phone) => {
+  if (!phone.variants || phone.variants.length === 0) return MARGIN;
+  return Math.min(...phone.variants.map((v) => v.price)) + MARGIN;
+};
 const priceFor = (phone, storage, color) => {
-  const variant = phone.variants.find((v) => v.storage === storage && v.colors.includes(color));
-  return variant && variant.price + MARGIN;
+  if (!phone.variants) return null;
+  const variant = phone.variants.find(
+    (v) => v.storage === storage && (!v.colors || v.colors.length === 0 || v.colors.includes(color))
+  );
+  return variant ? variant.price + MARGIN : null;
 };
 
-/* ---------- Grid ---------- */
+let currentTab = "new";
+let currentFamily = "all";
 
-function renderGrid(family = "all") {
-  const grid = $("#grid");
-  const phones = NEW_PHONES.filter((p) => family === "all" || p.family === family);
-  grid.innerHTML = phones
-    .map(
-      (p, i) => `
-      <button class="card" data-id="${p.id}" style="--i:${i}" aria-label="Ver ${p.name}">
-        ${p.tag ? `<span class="card__tag">${p.tag}</span>` : ""}
+/* ---------- Render Grid & Filter Chips ---------- */
+
+function updateCatalogView() {
+  const allPhones = getPhones();
+  const COLORS = getAllColors();
+  
+  // Filtrar según condición (tab: "new" o "used")
+  const tabPhones = allPhones.filter((p) => {
+    if (currentTab === "used") return p.condition === "used";
+    return p.condition !== "used"; // default "new"
+  });
+
+  const isNew = currentTab === "new";
+  const filtersContainer = isNew ? $("#filters-new") : $("#filters-used");
+  const gridContainer = isNew ? $("#grid-new") : $("#grid-used");
+  const emptyContainer = isNew ? $("#empty-new") : $("#empty-used");
+
+  if (tabPhones.length === 0) {
+    if (filtersContainer) filtersContainer.hidden = true;
+    if (gridContainer) gridContainer.innerHTML = "";
+    if (emptyContainer) emptyContainer.hidden = false;
+    return;
+  }
+
+  if (emptyContainer) emptyContainer.hidden = true;
+  if (filtersContainer) filtersContainer.hidden = false;
+
+  // Extraer familias únicas disponibles en esta pestaña
+  const families = ["all", ...new Set(tabPhones.map((p) => p.family || "Otros").filter(Boolean))];
+  
+  // Si la familia seleccionada ya no existe, volver a 'all'
+  if (!families.includes(currentFamily)) {
+    currentFamily = "all";
+  }
+
+  // Renderizar chips de filtro
+  filtersContainer.innerHTML = families
+    .map((fam) => {
+      const label = fam === "all" ? "Todos" : (isNaN(fam) ? fam : `iPhone ${fam}`);
+      const activeClass = fam === currentFamily ? "is-active" : "";
+      return `<button class="chip ${activeClass}" data-family="${escapeHTML(fam)}">${escapeHTML(label)}</button>`;
+    })
+    .join("");
+
+  // Re-asignar eventos a los chips
+  filtersContainer.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      currentFamily = chip.dataset.family;
+      filtersContainer.querySelectorAll(".chip").forEach((c) =>
+        c.classList.toggle("is-active", c === chip)
+      );
+      renderGridItems(tabPhones, gridContainer, COLORS);
+    });
+  });
+
+  renderGridItems(tabPhones, gridContainer, COLORS);
+}
+
+function renderGridItems(phones, gridContainer, COLORS) {
+  const filtered = phones.filter((p) => currentFamily === "all" || p.family === currentFamily);
+
+  if (filtered.length === 0) {
+    gridContainer.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--label-2); padding: 40px 0;">No se encontraron modelos para este filtro.</p>`;
+    return;
+  }
+
+  gridContainer.innerHTML = filtered
+    .map((p, i) => {
+      const coverColor = p.cover || (p.colors && p.colors[0]) || "black";
+      const imgSrc = resolvePhoneImage(p, coverColor);
+      const storages = storagesOf(p).join(" · ") || "Estándar";
+      const swatches = (p.colors || [])
+        .map((c) => {
+          const colorObj = COLORS[c] || { hex: "#888888" };
+          return `<span style="--c:${colorHex(colorObj.hex)}"></span>`;
+        })
+        .join("");
+
+      return `
+      <button class="card" data-id="${escapeHTML(p.id)}" style="--i:${i}" aria-label="Ver ${escapeHTML(p.name)}">
+        ${p.tag ? `<span class="card__tag">${escapeHTML(p.tag)}</span>` : ""}
         <div class="card__media">
-          <img src="${p.image(p.cover || p.colors[0])}" alt="${p.name}" loading="lazy" width="600" height="600">
+          <img src="${escapeHTML(imgSrc)}" alt="${escapeHTML(p.name)}" loading="lazy" width="600" height="600" onerror="this.src='img/phones/18promax-black.webp'">
         </div>
         <div class="card__body">
-          <h3>${p.name}</h3>
-          <p class="card__storage">${storagesOf(p).join(" · ")}</p>
+          <h3>${escapeHTML(p.name)}</h3>
+          <p class="card__storage">${escapeHTML(storages)}</p>
           <div class="swatches" aria-hidden="true">
-            ${p.colors.map((c) => `<span style="--c:${COLORS[c].hex}"></span>`).join("")}
+            ${swatches}
           </div>
           <p class="card__price"><small>Desde</small> ${formatCOP(minPrice(p))}</p>
         </div>
-      </button>`
-    )
+      </button>`;
+    })
     .join("");
 }
 
@@ -44,29 +128,40 @@ const viewer = createViewer($("#viewer"));
 const state = { phone: null, color: null, storage: null };
 
 function openDetail(id) {
-  const phone = NEW_PHONES.find((p) => p.id === id);
+  const allPhones = getPhones();
+  const phone = allPhones.find((p) => p.id === id);
   if (!phone) return;
+
+  const COLORS = getAllColors();
   state.phone = phone;
-  state.color = phone.cover || phone.colors[0];
-  state.storage = storagesOf(phone)[0];
+  state.color = phone.cover || (phone.colors && phone.colors[0]) || "black";
+  state.storage = storagesOf(phone)[0] || "";
 
   $("#detailName").textContent = phone.name;
-  $("#detailTag").textContent = phone.tag || "Nuevo";
-  $("#detailSpecs").innerHTML = phone.specs.map((s) => `<li>${s}</li>`).join("");
+  $("#detailTag").textContent = phone.tag || (phone.condition === "used" ? "Usado garantizado" : "Nuevo");
+  $("#detailSpecs").innerHTML = (phone.specs || []).map((s) => `<li>${escapeHTML(s)}</li>`).join("");
 
-  $("#detailColors").innerHTML = phone.colors
-    .map(
-      (c) => `<button type="button" role="radio" data-color="${c}" style="--c:${COLORS[c].hex}"
-        aria-label="${COLORS[c].name}" title="${COLORS[c].name}"></button>`
-    )
+  // Swatches
+  const colors = phone.colors || [];
+  $("#detailColors").innerHTML = colors
+    .map((c) => {
+      const col = COLORS[c] || { name: c, hex: "#888888" };
+      return `<button type="button" role="radio" data-color="${escapeHTML(c)}" style="--c:${colorHex(col.hex)}"
+        aria-label="${escapeHTML(col.name)}" title="${escapeHTML(col.name)}"></button>`;
+    })
     .join("");
 
-  $("#detailStorage").innerHTML = storagesOf(phone)
-    .map((s) => `<button type="button" role="radio" data-storage="${s}">${s}</button>`)
+  // Storages
+  const storages = storagesOf(phone);
+  $("#detailStorage").innerHTML = storages
+    .map((s) => `<button type="button" role="radio" data-storage="${escapeHTML(s)}">${escapeHTML(s)}</button>`)
     .join("");
 
-  // Precarga las demás imágenes para que el cambio de color sea instantáneo
-  phone.colors.forEach((c) => (new Image().src = phone.image(c)));
+  // Precargar imágenes si tienen colores
+  colors.forEach((c) => {
+    const img = new Image();
+    img.src = resolvePhoneImage(phone, c);
+  });
 
   updateDetail(false);
   dialog.showModal();
@@ -77,8 +172,10 @@ function openDetail(id) {
 
 function updateDetail(animate = true) {
   const { phone, color, storage } = state;
+  const COLORS = getAllColors();
   const img = $("#detailImg");
-  const src = phone.image(color);
+  const src = resolvePhoneImage(phone, color);
+  const colorObj = COLORS[color] || { name: color, hex: "#2b2b2d" };
 
   if (animate && img.getAttribute("src") !== src) {
     img.classList.add("is-swapping");
@@ -86,14 +183,18 @@ function updateDetail(animate = true) {
       img.src = src;
       viewer.setImage(src);
       img.onload = () => img.classList.remove("is-swapping");
+      img.onerror = () => {
+        img.src = "img/phones/18promax-black.webp";
+        img.classList.remove("is-swapping");
+      };
     }, 160);
   } else {
     img.src = src;
     viewer.setImage(src);
   }
-  img.alt = `${phone.name} ${COLORS[color].name}`;
-  dialog.style.setProperty("--glow", COLORS[color].hex);
-  $("#detailColorName").textContent = COLORS[color].name;
+  img.alt = `${phone.name} ${colorObj.name}`;
+  dialog.style.setProperty("--glow", colorHex(colorObj.hex));
+  $("#detailColorName").textContent = colorObj.name;
 
   dialog.querySelectorAll("[data-color]").forEach((b) => {
     const on = b.dataset.color === color;
@@ -140,7 +241,7 @@ dialog.addEventListener("click", (e) => {
   }
 });
 
-/* ---------- Tabs & filtros ---------- */
+/* ---------- Tabs (Nuevos / Usados) ---------- */
 
 document.querySelectorAll(".tabs__btn").forEach((btn) =>
   btn.addEventListener("click", () => {
@@ -148,22 +249,32 @@ document.querySelectorAll(".tabs__btn").forEach((btn) =>
       b.classList.toggle("is-active", b === btn);
       b.setAttribute("aria-selected", b === btn);
     });
-    $("#panel-new").hidden = btn.dataset.tab !== "new";
-    $("#panel-used").hidden = btn.dataset.tab !== "used";
+    currentTab = btn.dataset.tab;
+    currentFamily = "all";
+    $("#panel-new").hidden = currentTab !== "new";
+    $("#panel-used").hidden = currentTab !== "used";
+    updateCatalogView();
   })
 );
 
-document.querySelectorAll(".chip").forEach((chip) =>
-  chip.addEventListener("click", () => {
-    document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-active", c === chip));
-    renderGrid(chip.dataset.family);
-  })
-);
-
-$("#grid").addEventListener("click", (e) => {
+// Delegación de clic para abrir detalle de producto
+document.addEventListener("click", (e) => {
   const card = e.target.closest(".card");
-  if (card) openDetail(card.dataset.id);
+  if (card && card.dataset.id) {
+    openDetail(card.dataset.id);
+  }
 });
 
-renderGrid();
-if (location.hash) openDetail(location.hash.slice(1));
+// Inicialización
+updateCatalogView();
+
+// Mantener el catálogo sincronizado cuando el administrador edita productos en otra pestaña.
+window.addEventListener("storage", (event) => {
+  if (event.key === "catalog_cell_phones" || event.key === "catalog_cell_colors") {
+    updateCatalogView();
+  }
+});
+
+if (location.hash) {
+  openDetail(location.hash.slice(1));
+}
