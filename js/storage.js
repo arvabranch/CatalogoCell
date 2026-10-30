@@ -1,256 +1,123 @@
-// Gestor de persistencia y autenticación en LocalStorage
-import { NEW_PHONES, COLORS, MARGIN } from "./catalog.js";
+// Acceso a los datos del catálogo y del administrador a través de la API (/api, base de datos Neon).
+// Los productos se cargan una vez con loadCatalog() y se leen de memoria; los cambios se envían al servidor.
+import { NEW_PHONES, COLORS } from "./catalog.js";
 
-const STORAGE_KEYS = {
-  PHONES: "catalog_cell_phones",
-  COLORS: "catalog_cell_colors",
-  AUTH_USER: "catalog_cell_admin_user",
-  AUTH_SESSION: "catalog_cell_admin_session",
-};
+let cache = { phones: [], colors: {} };
 
-// Credenciales por defecto del Administrador
-const DEFAULT_ADMIN = {
-  username: "admin",
-  password: "admin123",
-  name: "Administrador",
-  role: "admin",
-};
-
-/* ==========================================================================
-   AUTENTICACIÓN
-   ========================================================================== */
-
-export function getAdminUser() {
-  const data = localStorage.getItem(STORAGE_KEYS.AUTH_USER);
-  if (!data) {
-    localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(DEFAULT_ADMIN));
-    return DEFAULT_ADMIN;
+async function api(path, { method = "GET", body } = {}) {
+  const response = await fetch(`api/${path}`, {
+    method,
+    credentials: "same-origin",
+    headers: body ? { "content-type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || "No se pudo conectar con el servidor.");
+    error.status = response.status;
+    throw error;
   }
+  return data;
+}
+
+// Catálogo incluido en el sitio, por si el servidor no responde
+function defaultPhones() {
+  return NEW_PHONES.map((phone) => ({
+    ...phone,
+    imageTemplate: typeof phone.image === "function" ? phone.image("{color}") : "",
+    image: undefined,
+  }));
+}
+
+/* ---------- Catálogo ---------- */
+
+export async function loadCatalog({ fallback = true } = {}) {
   try {
-    return JSON.parse(data);
-  } catch (e) {
-    return DEFAULT_ADMIN;
+    const data = await api("catalog");
+    cache = { phones: data.phones || [], colors: data.colors || {} };
+  } catch (error) {
+    if (!fallback) throw error;
+    cache = { phones: defaultPhones(), colors: {} };
   }
+  return cache.phones;
 }
 
-export function saveAdminUser(userData) {
-  localStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(userData));
+export function getPhones() {
+  return cache.phones;
 }
 
-export function login(username, password) {
-  const admin = getAdminUser();
-  const cleanUser = (username || "").trim().toLowerCase();
-  const cleanPass = (password || "").trim();
-
-  if (cleanUser === admin.username.toLowerCase() && cleanPass === admin.password) {
-    const session = {
-      isLoggedIn: true,
-      username: admin.username,
-      name: admin.name,
-      loginAt: new Date().toISOString(),
-    };
-    sessionStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(session));
-    return { success: true, user: session };
-  }
-
-  return {
-    success: false,
-    message: "Usuario o contraseña incorrectos. Revisa las credenciales.",
-  };
+export function getAllColors() {
+  return { ...COLORS, ...cache.colors };
 }
 
-export function logout() {
-  sessionStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+export async function addPhone(product) {
+  const saved = await api("phones", { method: "POST", body: product });
+  cache.phones = [saved, ...cache.phones];
+  return saved;
 }
 
-export function getSession() {
-  const sessionData = sessionStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
-  if (!sessionData) return null;
+export async function updatePhone(id, product) {
+  const saved = await api(`phones?id=${encodeURIComponent(id)}`, { method: "PUT", body: product });
+  cache.phones = cache.phones.map((phone) => (phone.id === id ? saved : phone));
+  return saved;
+}
+
+export async function deletePhone(id) {
+  await api(`phones?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  cache.phones = cache.phones.filter((phone) => phone.id !== id);
+}
+
+export async function resetPhonesToDefault() {
+  await api("phones?action=reset", { method: "POST", body: {} });
+  return loadCatalog({ fallback: false });
+}
+
+export async function saveCustomColor(key, name, hex) {
+  const color = await api("colors", { method: "POST", body: { key, name, hex } });
+  cache.colors = { ...cache.colors, [color.key]: { name: color.name, hex: color.hex } };
+  return color;
+}
+
+/* ---------- Sesión del administrador ---------- */
+
+export async function getSession() {
   try {
-    const parsed = JSON.parse(sessionData);
-    return parsed.isLoggedIn ? parsed : null;
-  } catch (e) {
+    return (await api("session")).user;
+  } catch {
     return null;
   }
 }
 
-export function isAuthenticated() {
-  return getSession() !== null;
-}
-
-export function changeAdminPassword(currentPassword, newPassword) {
-  const admin = getAdminUser();
-  if (admin.password !== currentPassword) {
-    return { success: false, message: "La contraseña actual no coincide." };
-  }
-  if (!newPassword || newPassword.length < 4) {
-    return { success: false, message: "La nueva contraseña debe tener al menos 4 caracteres." };
-  }
-
-  admin.password = newPassword;
-  saveAdminUser(admin);
-  return { success: true, message: "Contraseña actualizada correctamente." };
-}
-
-/* ==========================================================================
-   COLORES
-   ========================================================================== */
-
-export function getAllColors() {
-  const custom = localStorage.getItem(STORAGE_KEYS.COLORS);
-  let parsedCustom = {};
-  if (custom) {
-    try {
-      parsedCustom = JSON.parse(custom);
-    } catch (e) {
-      parsedCustom = {};
-    }
-  }
-  return { ...COLORS, ...parsedCustom };
-}
-
-export function saveCustomColor(key, name, hex) {
-  const custom = localStorage.getItem(STORAGE_KEYS.COLORS);
-  let parsedCustom = {};
-  if (custom) {
-    try {
-      parsedCustom = JSON.parse(custom);
-    } catch (e) {}
-  }
-  parsedCustom[key] = { name, hex };
-  localStorage.setItem(STORAGE_KEYS.COLORS, JSON.stringify(parsedCustom));
-  return getAllColors();
-}
-
-/* ==========================================================================
-   PRODUCTOS / TELÉFONOS
-   ========================================================================== */
-
-function defaultPhonesToStorage() {
-  return NEW_PHONES.map((phone) => {
-    // Convierte función image a template string
-    let imageTemplate = "";
-    if (typeof phone.image === "function") {
-      imageTemplate = phone.image("{color}");
-    } else if (typeof phone.image === "string") {
-      imageTemplate = phone.image;
-    } else {
-      imageTemplate = `img/phones/${phone.id}-{color}.webp`;
-    }
-
-    return {
-      id: phone.id,
-      name: phone.name,
-      family: phone.family || "18",
-      condition: phone.condition || "new",
-      tag: phone.tag || "",
-      cover: phone.cover || phone.colors[0],
-      specs: phone.specs || [],
-      colors: phone.colors || [],
-      imageTemplate: imageTemplate,
-      imageMap: phone.imageMap || null,
-      variants: phone.variants || [],
-    };
-  });
-}
-
-export function getPhones() {
-  const stored = localStorage.getItem(STORAGE_KEYS.PHONES);
-  if (!stored) {
-    const defaults = defaultPhonesToStorage();
-    localStorage.setItem(STORAGE_KEYS.PHONES, JSON.stringify(defaults));
-    return defaults;
-  }
+export async function login(username, password) {
   try {
-    const list = JSON.parse(stored);
-    if (!Array.isArray(list)) {
-      const defaults = defaultPhonesToStorage();
-      localStorage.setItem(STORAGE_KEYS.PHONES, JSON.stringify(defaults));
-      return defaults;
-    }
-    return list;
-  } catch (e) {
-    const defaults = defaultPhonesToStorage();
-    localStorage.setItem(STORAGE_KEYS.PHONES, JSON.stringify(defaults));
-    return defaults;
+    const user = await api("login", { method: "POST", body: { username, password } });
+    return { success: true, user };
+  } catch (error) {
+    return { success: false, message: error.message };
   }
 }
 
-export function savePhones(phones) {
-  localStorage.setItem(STORAGE_KEYS.PHONES, JSON.stringify(phones));
+export async function logout() {
+  await api("logout", { method: "POST", body: {} }).catch(() => {});
 }
 
-export function resetPhonesToDefault() {
-  const defaults = defaultPhonesToStorage();
-  localStorage.setItem(STORAGE_KEYS.PHONES, JSON.stringify(defaults));
-  return defaults;
+export async function changeAdminPassword(current, next) {
+  try {
+    const result = await api("password", { method: "POST", body: { current, next } });
+    return { success: true, message: result.message };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
 }
 
-export function addPhone(phoneData) {
-  const phones = getPhones();
-  // Generar ID único si no viene
-  const id = phoneData.id || phoneData.name.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Date.now().toString(36);
-  
-  const newPhone = {
-    ...phoneData,
-    id: id,
-    condition: phoneData.condition || "new",
-    cover: phoneData.cover || (phoneData.colors && phoneData.colors[0]) || "black",
-  };
-
-  phones.unshift(newPhone); // Agregar al inicio
-  savePhones(phones);
-  return newPhone;
-}
-
-export function updatePhone(id, updatedData) {
-  const phones = getPhones();
-  const index = phones.findIndex((p) => p.id === id);
-  if (index === -1) return null;
-
-  phones[index] = {
-    ...phones[index],
-    ...updatedData,
-    id: id, // Conservar ID
-  };
-
-  savePhones(phones);
-  return phones[index];
-}
-
-export function deletePhone(id) {
-  const phones = getPhones();
-  const filtered = phones.filter((p) => p.id !== id);
-  savePhones(filtered);
-  return filtered;
-}
+/* ---------- Imágenes ---------- */
 
 export function resolvePhoneImage(phone, color) {
   if (!phone) return "img/phones/18promax-black.webp";
-  
-  // 1. Mapa de colores específico
-  if (phone.imageMap && phone.imageMap[color]) {
-    return phone.imageMap[color];
-  }
-  // 2. Si viene imagen única cargada (Data URL / enlace directo)
-  if (phone.singleImage) {
-    return phone.singleImage;
-  }
-  // 3. Plantilla con {color}
-  if (phone.imageTemplate) {
-    return phone.imageTemplate.replace("{color}", color || phone.cover || "black");
-  }
-  // 4. Si la propiedad image es función
-  if (typeof phone.image === "function") {
-    return phone.image(color || phone.cover || "black");
-  }
-  // 5. Si la propiedad image es string
-  if (typeof phone.image === "string") {
-    return phone.image.replace("{color}", color || phone.cover || "black");
-  }
-  
-  return `img/phones/18promax-black.webp`;
+  const pick = color || phone.cover || "black";
+  if (phone.imageMap && phone.imageMap[pick]) return phone.imageMap[pick];
+  if (phone.singleImage) return phone.singleImage;
+  if (phone.imageTemplate) return phone.imageTemplate.replace("{color}", pick);
+  if (typeof phone.image === "function") return phone.image(pick);
+  return "img/phones/18promax-black.webp";
 }
-
-export { MARGIN, DEFAULT_ADMIN };
-

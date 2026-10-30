@@ -1,0 +1,15 @@
+{
+  "name": "catalogo-cell",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env scripts/dev-server.mjs",
+    "db:setup": "node --env-file=.env scripts/setup-db.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0"
+  }
+}

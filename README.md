@@ -1,29 +1,53 @@
 # CatálogoCell · iPhone Colombia
 #v0.1
-Catálogo web estático (HTML + CSS + JS, sin dependencias).
+Catálogo web (HTML + CSS + JS) con panel de administración conectado a una base de datos Neon (Postgres) mediante funciones de Vercel en `api/`.
+
+## Configuración
+
+1. Crea un archivo `.env` en la raíz con la conexión de Neon (nunca se sube a GitHub):
+
+   ```
+   DATABASE_URL=postgresql://...
+   ```
+
+2. Instala dependencias y prepara la base de datos (crea las tablas, carga el catálogo inicial y el usuario `admin`). Se puede correr varias veces sin borrar nada:
+
+   ```bash
+   npm install
+   ```
+
+   ```bash
+   npm run db:setup
+   ```
+
+3. En Vercel, agrega la misma variable `DATABASE_URL` en *Settings → Environment Variables* del proyecto y vuelve a desplegar.
 
 ## Ver en local
 
 ```bash
-python3 -m http.server 5173
+npm run dev
 ```
 
-Luego abre http://localhost:5173. (Se necesita un servidor porque `js/app.js` usa módulos ES.)
+Abre http://localhost:5173 (catálogo) y http://localhost:5173/admin/ (panel). El servidor local imita Vercel: sirve las páginas y las funciones de `api/`.
 
-## Editar precios y modelos
+## Cómo funciona
 
-Todo está en [`js/catalog.js`](js/catalog.js):
+- **Catálogo público** (`index.html`, `js/app.js`): carga los productos desde `GET /api/catalog`. Si el servidor no responde, muestra el catálogo incluido en [`js/catalog.js`](js/catalog.js).
+- **Panel** (`/admin/`, `js/admin.js`): crea, edita y elimina productos, sube fotos, agrega colores y cambia la contraseña. Los cambios se guardan en Neon y se ven en el catálogo de todos los clientes en pocos segundos.
+- **API** (`api/`): `catalog`, `login`, `logout`, `session`, `password`, `phones`, `colors` e `image`. Las rutas que modifican datos exigen sesión de administrador (cookie firmada, solo del mismo sitio). Las contraseñas se guardan cifradas con scrypt y hay bloqueo temporal tras varios intentos fallidos.
+- **Base de datos**: tablas `phones` (cada producto como JSON), `colors`, `images` (fotos subidas), `admin_users`, `settings` y `login_attempts`. El esquema está en [`api/_lib/defaults.js`](api/_lib/defaults.js).
 
-- `NEW_PHONES`: cada modelo tiene `colors` (los que se muestran) y `variants` (capacidad + colores a los que aplica + precio en COP).
-- `MARGIN`: valor que se suma a todos los precios (hoy $200.000). Los precios de `variants` son los de la lista original.
-- `cover`: color opcional para la foto de la tarjeta.
+Los precios que se guardan son los finales: el cliente ve exactamente lo que se escribe en el panel. [`js/catalog.js`](js/catalog.js) solo define el catálogo inicial (y el botón "Restablecer Original" del panel).
 
-El visor 3D del detalle (girar el celular arrastrando) está en [`js/viewer.js`](js/viewer.js).
+El visor 3D del detalle (girar el celular arrastrando) está en [`js/viewer.js`](js/viewer.js). Las imágenes del catálogo inicial están en `img/phones/` con el formato `<modelo>-<color>.webp`.
 
-Las imágenes están en `img/phones/` con el formato `<modelo>-<color>.webp`.
+## Páginas legales
+
+- `/terminos/`: Términos y Condiciones (precios, pago contra entrega, envíos, retracto, garantía, marcas).
+- `/privacidad/`: Política de Tratamiento de Datos Personales (Ley 1581 de 2012).
+
+Los datos del negocio (nombre, WhatsApp, correo) se editan en `BUSINESS` dentro de [`js/catalog.js`](js/catalog.js). El correo aparece en las páginas solo cuando se completa. Haz revisar los textos con un abogado antes de usarlos como definitivos.
 
 ## Panel de administración
 
-El panel está en `/admin/` (por ejemplo http://localhost:5173/admin/). No tiene enlace desde el catálogo público; las credenciales se entregan aparte en el PDF de acceso.
-
-El proyecto no tiene servidor ni base de datos. La sesión y los productos se guardan en el almacenamiento local del navegador, por lo que los cambios solo aparecen en ese navegador. Para publicar cambios para todos los visitantes, conecta el panel a una API y una base de datos.
+El panel está en `/admin/`. No tiene enlace desde el catálogo público; las credenciales se entregan aparte en el PDF de acceso.

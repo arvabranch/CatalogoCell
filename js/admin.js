@@ -2,14 +2,12 @@ import {
   addPhone,
   changeAdminPassword,
   deletePhone,
-  getAdminUser,
   getAllColors,
   getPhones,
   getSession,
-  isAuthenticated,
+  loadCatalog,
   login,
   logout,
-  MARGIN,
   resetPhonesToDefault,
   resolvePhoneImage,
   saveCustomColor,
@@ -60,13 +58,41 @@ function showLoginMessage(message) {
   elements.loginAlert.classList.add("login-alert--error");
 }
 
-function enterDashboard() {
-  const session = getSession();
+async function enterDashboard(user) {
   elements.loginView.hidden = true;
   elements.dashboard.hidden = false;
   const greeting = $("#admin-greeting");
-  if (greeting) greeting.textContent = session?.name || getAdminUser().name || "Administrador";
+  if (greeting) greeting.textContent = user?.name || "Administrador";
+  try {
+    await loadCatalog({ fallback: false });
+  } catch (error) {
+    showToast("No se pudo cargar el catálogo desde el servidor. Revisa la conexión.", true);
+  }
   renderProducts();
+}
+
+// Si el servidor dice que la sesión terminó, vuelve al ingreso
+function handleError(error, fallbackMessage) {
+  if (error.status === 401) {
+    enterLogin();
+    showLoginMessage(error.message);
+    return;
+  }
+  showToast(error.message || fallbackMessage, true);
+}
+
+// Evita doble envío mientras el servidor responde
+async function withBusy(button, task) {
+  if (!button) return task();
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Guardando…";
+  try {
+    return await task();
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
 }
 
 function enterLogin() {
@@ -99,7 +125,7 @@ function renderProducts() {
     const cover = phone.cover || phone.colors?.[0] || "black";
     const image = imageURL(phone);
     const variants = (phone.variants || []).map((variant) => `
-      <div class="variant-row"><span>${escapeHTML(variant.storage)}</span><strong>${formatCOP(Number(variant.price) + MARGIN)}</strong></div>
+      <div class="variant-row"><span>${escapeHTML(variant.storage)}</span><strong>${formatCOP(Number(variant.price))}</strong></div>
     `).join("");
     const colorDots = (phone.colors || []).map((key) => {
       const color = colors[key] || { name: key, hex: "#888888" };
@@ -206,7 +232,7 @@ function addVariantRow(variant = {}) {
   const applicableColors = Array.isArray(variant.colors) ? variant.colors : availableColors;
   row.innerHTML = `
     <input class="variant-storage" type="text" value="${escapeHTML(variant.storage || "")}" placeholder="128GB" aria-label="Capacidad" required>
-    <input class="variant-price" type="number" value="${variant.price === undefined ? "" : Number(variant.price)}" min="0" step="1000" placeholder="Precio base COP" aria-label="Precio base en pesos colombianos" required>
+    <input class="variant-price" type="number" value="${variant.price === undefined ? "" : Number(variant.price)}" min="0" step="1000" placeholder="Precio final COP" aria-label="Precio final en pesos colombianos" required>
     <button type="button" class="btn-danger-outline variant-remove" aria-label="Quitar capacidad">&times;</button>
     <div class="variant-color-options" aria-label="Colores incluidos en esta capacidad">
       <span>Aplica a:</span>
@@ -336,17 +362,12 @@ function collectProductData() {
     colors: $$(".variant-color-options input:checked", row).map((input) => input.value),
   }));
   if (!variants.length || variants.some((variant, index) => !$(".variant-price", $$(".variant-item-row")[index]).value.trim() || !variant.storage || !Number.isFinite(variant.price) || variant.price <= 0 || !variant.colors.length)) {
-    throw new Error("Completa al menos una capacidad y un precio base válido.");
+    throw new Error("Completa al menos una capacidad y un precio válido.");
   }
 
   const image = pickProductImage();
   if (!image) throw new Error("Selecciona una imagen para el producto.");
-  let id = editingPhone?.id || slugify(name) || `producto-${Date.now().toString(36)}`;
-  if (!editingPhone && getPhones().some((phone) => phone.id === id)) {
-    id = `${id}-${Date.now().toString(36)}`;
-  }
   const product = {
-    id,
     name,
     family,
     condition: $("#prod-condition").value,
@@ -370,14 +391,17 @@ function collectProductData() {
   return product;
 }
 
-elements.loginForm.addEventListener("submit", (event) => {
+elements.loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   elements.loginAlert.classList.remove("login-alert--error");
   elements.loginAlert.textContent = "";
-  const result = login($("#login-username").value, elements.passwordInput.value);
+  const submit = $("#btn-submit-login");
+  submit.disabled = true;
+  const result = await login($("#login-username").value, elements.passwordInput.value);
+  submit.disabled = false;
   if (!result.success) return showLoginMessage(result.message);
   elements.loginForm.reset();
-  enterDashboard();
+  enterDashboard(result.user);
 });
 
 elements.passwordToggle.addEventListener("click", () => {
@@ -386,8 +410,8 @@ elements.passwordToggle.addEventListener("click", () => {
   elements.passwordToggle.setAttribute("aria-label", visible ? "Ocultar contraseña" : "Mostrar contraseña");
 });
 
-$("#btn-logout").addEventListener("click", () => {
-  logout();
+$("#btn-logout").addEventListener("click", async () => {
+  await logout();
   enterLogin();
   showToast("Sesión cerrada.");
 });
@@ -399,7 +423,7 @@ $("#btn-open-password-modal").addEventListener("click", () => openModal(elements
 elements.search.addEventListener("input", renderProducts);
 elements.conditionFilter.addEventListener("change", renderProducts);
 
-elements.products.addEventListener("click", (event) => {
+elements.products.addEventListener("click", async (event) => {
   const editButton = event.target.closest("[data-edit-phone]");
   if (editButton) {
     const phone = getPhones().find((item) => item.id === editButton.dataset.editPhone);
@@ -410,23 +434,32 @@ elements.products.addEventListener("click", (event) => {
   if (deleteButton) {
     const phone = getPhones().find((item) => item.id === deleteButton.dataset.deletePhone);
     if (!phone || !window.confirm(`¿Eliminar ${phone.name} del catálogo?`)) return;
-    deletePhone(phone.id);
-    renderProducts();
-    showToast("Producto eliminado del catálogo.");
+    try {
+      await deletePhone(phone.id);
+      renderProducts();
+      showToast("Producto eliminado del catálogo.");
+    } catch (error) {
+      handleError(error, "No se pudo eliminar el producto.");
+    }
   }
 });
 
-elements.productForm.addEventListener("submit", (event) => {
+elements.productForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  let product;
   try {
-    const product = collectProductData();
-    if (editingPhone) updatePhone(editingPhone.id, product);
-    else addPhone(product);
+    product = collectProductData();
+  } catch (error) {
+    return showToast(error.message, true);
+  }
+  const isEdit = Boolean(editingPhone);
+  try {
+    await withBusy(event.submitter, () => (isEdit ? updatePhone(editingPhone.id, product) : addPhone(product)));
     closeModal(elements.productModal);
     renderProducts();
-    showToast(editingPhone ? "Producto actualizado." : "Producto agregado al catálogo.");
+    showToast(isEdit ? "Producto actualizado. Ya se ve en el catálogo." : "Producto publicado en el catálogo.");
   } catch (error) {
-    showToast(error.message || "No se pudo guardar el producto.", true);
+    handleError(error, "No se pudo guardar el producto.");
   }
 });
 
@@ -464,8 +497,6 @@ $("#prod-cover").addEventListener("change", () => {
 $("#prod-img-source-type").addEventListener("change", updateImageSourceVisibility);
 $("#prod-gallery-select").addEventListener("change", updateImagePreview);
 $("#prod-img-url").addEventListener("input", updateImagePreview);
-document.querySelectorAll("[data-margin-label]").forEach((el) => (el.textContent = formatCOP(MARGIN)));
-
 // Revisa la foto contra las recomendaciones y avisa sin bloquear
 function photoWarnings({ width, height }) {
   const warnings = [];
@@ -516,32 +547,42 @@ uploadDrop.addEventListener("drop", (event) => {
   handlePhotoFile(event.dataTransfer.files?.[0]);
 });
 
-$("#btn-reset-catalog").addEventListener("click", () => {
-  if (!window.confirm("Esto reemplazará todos los cambios y productos agregados por el catálogo original. ¿Continuar?")) return;
-  resetPhonesToDefault();
-  renderProducts();
-  showToast("Catálogo original restaurado.");
+$("#btn-reset-catalog").addEventListener("click", async () => {
+  if (!window.confirm("Esto reemplazará para todos los clientes los cambios y productos agregados por el catálogo original. ¿Continuar?")) return;
+  try {
+    await resetPhonesToDefault();
+    renderProducts();
+    showToast("Catálogo original restaurado.");
+  } catch (error) {
+    handleError(error, "No se pudo restaurar el catálogo.");
+  }
 });
 
-$("#form-password").addEventListener("submit", (event) => {
+$("#form-password").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   const newPassword = $("#pass-new").value;
   if (newPassword !== $("#pass-confirm").value) return showToast("Las contraseñas nuevas no coinciden.", true);
-  const result = changeAdminPassword($("#pass-current").value, newPassword);
+  const result = await changeAdminPassword($("#pass-current").value, newPassword);
   if (!result.success) return showToast(result.message, true);
-  event.currentTarget.reset();
+  form.reset();
   closeModal(elements.passwordModal);
   showToast(result.message);
 });
 
-$("#form-custom-color").addEventListener("submit", (event) => {
+$("#form-custom-color").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   const name = $("#color-name").value.trim();
   const hex = $("#color-hex").value.trim();
   if (!name || !/^#[0-9a-f]{6}$/i.test(hex)) return showToast("Escribe un nombre y un color hexadecimal válido.", true);
   const key = slugify(name);
   if (!key) return showToast("Escribe un nombre de color válido.", true);
-  saveCustomColor(key, name, hex);
+  try {
+    await saveCustomColor(key, name, hex);
+  } catch (error) {
+    return handleError(error, "No se pudo guardar el color.");
+  }
   const selected = [...selectedColors(), key];
   renderColorChoices(selected);
   renderCoverOptions(key);
@@ -549,7 +590,7 @@ $("#form-custom-color").addEventListener("submit", (event) => {
     const previous = $$(".variant-color-options input:checked", row).map((input) => input.value);
     refreshVariantColorOptions(row, [...previous, key]);
   });
-  event.currentTarget.reset();
+  form.reset();
   closeModal(elements.colorModal);
   showToast("Color agregado al selector.");
 });
@@ -572,5 +613,6 @@ document.addEventListener("keydown", (event) => {
   });
 });
 
-if (isAuthenticated()) enterDashboard();
+const sessionUser = await getSession();
+if (sessionUser) enterDashboard(sessionUser);
 else enterLogin();

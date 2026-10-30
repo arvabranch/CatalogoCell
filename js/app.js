@@ -1,4 +1,4 @@
-import { getPhones, getAllColors, resolvePhoneImage, MARGIN } from "./storage.js";
+import { getPhones, getAllColors, loadCatalog, resolvePhoneImage } from "./storage.js";
 import { createViewer } from "./viewer.js";
 import { WHATSAPP_NUMBER } from "./catalog.js";
 
@@ -11,15 +11,15 @@ const colorHex = (color) => /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#8888
 
 const storagesOf = (phone) => [...new Set((phone.variants || []).map((v) => v.storage))];
 const minPrice = (phone) => {
-  if (!phone.variants || phone.variants.length === 0) return MARGIN;
-  return Math.min(...phone.variants.map((v) => v.price)) + MARGIN;
+  if (!phone.variants || phone.variants.length === 0) return null;
+  return Math.min(...phone.variants.map((v) => v.price));
 };
 const priceFor = (phone, storage, color) => {
   if (!phone.variants) return null;
   const variant = phone.variants.find(
     (v) => v.storage === storage && (!v.colors || v.colors.length === 0 || v.colors.includes(color))
   );
-  return variant ? variant.price + MARGIN : null;
+  return variant ? variant.price : null;
 };
 
 let currentTab = "new";
@@ -115,7 +115,7 @@ function renderGridItems(phones, gridContainer, COLORS) {
           <div class="swatches" aria-hidden="true">
             ${swatches}
           </div>
-          <p class="card__price"><small>Desde</small> ${formatCOP(minPrice(p))}</p>
+          <p class="card__price">${minPrice(p) ? `<small>Desde</small> ${formatCOP(minPrice(p))}` : "Consultar"}</p>
         </div>
       </button>`;
     })
@@ -126,7 +126,12 @@ function renderGridItems(phones, gridContainer, COLORS) {
 
 const dialog = $("#detail");
 const viewer = createViewer($("#viewer"));
-const state = { phone: null, color: null, storage: null };
+const PAYMENTS = {
+  contraentrega: { label: "contra entrega", note: "Pagas al recibir. Antes de pagar puedes revisar que la caja esté sellada y que el equipo sea el que pediste." },
+  transferencia: { label: "por transferencia anticipada", note: "Te enviamos los datos de pago solo desde este WhatsApp oficial, a nombre del vendedor." },
+};
+
+const state = { phone: null, color: null, storage: null, payment: "contraentrega" };
 
 function openDetail(id) {
   const allPhones = getPhones();
@@ -207,6 +212,12 @@ function updateDetail(animate = true) {
     b.classList.toggle("is-active", on);
     b.setAttribute("aria-checked", on);
   });
+  dialog.querySelectorAll("[data-payment]").forEach((b) => {
+    const on = b.dataset.payment === state.payment;
+    b.classList.toggle("is-active", on);
+    b.setAttribute("aria-checked", on);
+  });
+  $("#paymentNote").textContent = PAYMENTS[state.payment].note;
 
   const price = priceFor(phone, storage, color);
   $("#detailPrice").textContent = price ? formatCOP(price) : "Consultar";
@@ -214,7 +225,8 @@ function updateDetail(animate = true) {
   const condition = phone.condition === "used" ? "usado" : "nuevo";
   $("#detailWhatsapp").href = whatsappLink(
     `Hola! Me interesa el ${phone.name} ${storage} color ${colorObj.name} (${condition})` +
-      (price ? ` por ${formatCOP(price)}` : "") + ". ¿Está disponible?"
+      (price ? ` por ${formatCOP(price)}` : "") +
+      `. Quiero pagar ${PAYMENTS[state.payment].label}. ¿Está disponible?`
   );
 }
 
@@ -249,7 +261,12 @@ dialog.addEventListener("click", (e) => {
   const storageBtn = e.target.closest("[data-storage]");
   if (storageBtn) {
     state.storage = storageBtn.dataset.storage;
-    updateDetail();
+    return updateDetail();
+  }
+  const paymentBtn = e.target.closest("[data-payment]");
+  if (paymentBtn) {
+    state.payment = paymentBtn.dataset.payment;
+    updateDetail(false);
   }
 });
 
@@ -277,15 +294,9 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Inicialización
+// Inicialización: los productos vienen de la base de datos (con el catálogo incluido como respaldo)
+await loadCatalog();
 updateCatalogView();
-
-// Mantener el catálogo sincronizado cuando el administrador edita productos en otra pestaña.
-window.addEventListener("storage", (event) => {
-  if (event.key === "catalog_cell_phones" || event.key === "catalog_cell_colors") {
-    updateCatalogView();
-  }
-});
 
 if (location.hash) {
   openDetail(location.hash.slice(1));

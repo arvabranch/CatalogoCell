@@ -1,11 +1,18 @@
-// Catálogo de iPhone. Para cambiar precios, edita `variants`.
-// Cada variante: capacidad, colores a los que aplica el precio y precio en COP.
-
-// Valor que se suma a todos los precios de la lista antes de mostrarlos.
-export const MARGIN = 200000;
+// Catálogo inicial de iPhone: se carga en la base de datos con `npm run db:setup` y se usa como
+// respaldo si el servidor no responde. Los cambios del día a día se hacen desde el panel /admin/.
+// Cada variante: capacidad, colores a los que aplica el precio y precio final en COP (el que ve el cliente).
 
 // Número que recibe los pedidos por WhatsApp: indicativo 57 + celular, sin "+" ni espacios.
 export const WHATSAPP_NUMBER = "573176777750";
+
+// Datos del responsable que aparecen en los Términos y en la Política de datos.
+export const BUSINESS = {
+  brand: "iPhone Colombia",
+  email: "", // Correo para solicitudes de datos personales y PQR (se muestra cuando se complete)
+  phone: "+57 317 677 7750",
+  site: "https://iphonecolombia.arvabranch.com",
+  updated: "30 de octubre de 2026",
+};
 
 export const COLORS = {
   black:        { name: "Negro",          hex: "#2b2b2d" },
@@ -39,11 +46,11 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/18promax-${c}.webp`,
     colors: ["black", "silver", "glacier", "burgundy"],
     variants: [
-      { storage: "256GB", colors: ["black"], price: 4899000 },
-      { storage: "256GB", colors: ["silver"], price: 5019000 },
-      { storage: "256GB", colors: ["burgundy", "glacier"], price: 5099000 },
-      { storage: "512GB", colors: ["black", "silver"], price: 5799000 },
-      { storage: "512GB", colors: ["burgundy", "glacier"], price: 5949000 },
+      { storage: "256GB", colors: ["black"], price: 5099000 },
+      { storage: "256GB", colors: ["silver"], price: 5219000 },
+      { storage: "256GB", colors: ["burgundy", "glacier"], price: 5299000 },
+      { storage: "512GB", colors: ["black", "silver"], price: 5999000 },
+      { storage: "512GB", colors: ["burgundy", "glacier"], price: 6149000 },
     ],
   },
   {
@@ -56,8 +63,8 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/18pro-${c}.webp`,
     colors: ["black", "silver", "glacier", "burgundy"],
     variants: [
-      { storage: "256GB", colors: ["black", "silver", "glacier"], price: 4449000 },
-      { storage: "256GB", colors: ["burgundy"], price: 4649000 },
+      { storage: "256GB", colors: ["black", "silver", "glacier"], price: 4649000 },
+      { storage: "256GB", colors: ["burgundy"], price: 4849000 },
     ],
   },
   {
@@ -68,9 +75,9 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/17promax-${c}.webp`,
     colors: ["cosmicorange", "deepblue", "silver"],
     variants: [
-      { storage: "256GB", colors: ["cosmicorange", "deepblue"], price: 4149000 },
-      { storage: "256GB", colors: ["silver"], price: 4349000 },
-      { storage: "512GB", colors: ["cosmicorange", "deepblue", "silver"], price: 5049000 },
+      { storage: "256GB", colors: ["cosmicorange", "deepblue"], price: 4349000 },
+      { storage: "256GB", colors: ["silver"], price: 4549000 },
+      { storage: "512GB", colors: ["cosmicorange", "deepblue", "silver"], price: 5249000 },
     ],
   },
   {
@@ -81,9 +88,9 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/17pro-${c}.webp`,
     colors: ["cosmicorange", "deepblue", "silver"],
     variants: [
-      { storage: "256GB", colors: ["cosmicorange", "deepblue"], price: 4049000 },
-      { storage: "256GB", colors: ["silver"], price: 4149000 },
-      { storage: "512GB", colors: ["cosmicorange", "deepblue", "silver"], price: 4599000 },
+      { storage: "256GB", colors: ["cosmicorange", "deepblue"], price: 4249000 },
+      { storage: "256GB", colors: ["silver"], price: 4349000 },
+      { storage: "512GB", colors: ["cosmicorange", "deepblue", "silver"], price: 4799000 },
     ],
   },
   {
@@ -94,7 +101,7 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/air-${c}.webp`,
     colors: ["skyblue", "lightgold", "cloudwhite", "spaceblack"],
     variants: [
-      { storage: "256GB", colors: ["skyblue", "lightgold", "cloudwhite", "spaceblack"], price: 3579000 },
+      { storage: "256GB", colors: ["skyblue", "lightgold", "cloudwhite", "spaceblack"], price: 3779000 },
     ],
   },
   {
@@ -105,7 +112,7 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/17-${c}.webp`,
     colors: ["lavender", "mistblue", "sage", "white", "black"],
     variants: [
-      { storage: "256GB", colors: ["lavender", "mistblue", "sage", "white", "black"], price: 3179000 },
+      { storage: "256GB", colors: ["lavender", "mistblue", "sage", "white", "black"], price: 3379000 },
     ],
   },
   {
@@ -116,7 +123,7 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/17e-${c}.webp`,
     colors: ["black", "white", "softpink"],
     variants: [
-      { storage: "256GB", colors: ["black", "white", "softpink"], price: 2579000 },
+      { storage: "256GB", colors: ["black", "white", "softpink"], price: 2779000 },
     ],
   },
   {
@@ -127,7 +134,7 @@ export const NEW_PHONES = [
     image: (c) => `img/phones/16-${c}.webp`,
     colors: ["ultramarine", "teal", "pink", "white", "black"],
     variants: [
-      { storage: "128GB", colors: ["ultramarine", "teal", "pink", "white", "black"], price: 2829000 },
+      { storage: "128GB", colors: ["ultramarine", "teal", "pink", "white", "black"], price: 3029000 },
     ],
   },
 ];
