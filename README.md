@@ -24,6 +24,6 @@ Las imágenes están en `img/phones/` con el formato `<modelo>-<color>.webp`.
 
 ## Panel de administración
 
-Abre `admin.html` desde el catálogo o directamente en el navegador. El acceso inicial es `admin` / `admin123`; cambia la contraseña desde el panel después del primer ingreso.
+El panel está en `/admin/` (por ejemplo http://localhost:5173/admin/). No tiene enlace desde el catálogo público; las credenciales se entregan aparte en el PDF de acceso.
 
 El proyecto no tiene servidor ni base de datos. La sesión y los productos se guardan en el almacenamiento local del navegador, por lo que los cambios solo aparecen en ese navegador. Para publicar cambios para todos los visitantes, conecta el panel a una API y una base de datos.
