@@ -1,5 +1,5 @@
 # CatálogoCell · iPhone Colombia
-#v0.2
+#v0.3
 Catálogo web (HTML + CSS + JS) con panel de administración conectado a una base de datos Neon (Postgres) mediante funciones de Vercel en `api/`.
 
 ## Configuración
