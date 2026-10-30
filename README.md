@@ -1,5 +1,5 @@
 # CatálogoCell · iPhone Colombia
-
+#v0.1
 Catálogo web estático (HTML + CSS + JS, sin dependencias).
 
 ## Ver en local
