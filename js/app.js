@@ -2,6 +2,14 @@ import { getPhones, getAllColors, loadCatalog, resolvePhoneImage } from "./stora
 import { createViewer } from "./viewer.js";
 import { WHATSAPP_NUMBER } from "./catalog.js";
 
+// Si una foto no carga, muestra la de respaldo (sin código en el HTML, por la política de seguridad)
+document.addEventListener("error", (event) => {
+  const img = event.target;
+  if (img.tagName !== "IMG" || img.dataset.fallback) return;
+  img.dataset.fallback = "1";
+  img.src = "img/phones/18promax-black.webp";
+}, true);
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const formatCOP = (n) => "$" + n.toLocaleString("es-CO");
 const escapeHTML = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({
@@ -107,7 +115,7 @@ function renderGridItems(phones, gridContainer, COLORS) {
       <button class="card" data-id="${escapeHTML(p.id)}" style="--i:${i}" aria-label="Ver ${escapeHTML(p.name)}">
         ${p.tag ? `<span class="card__tag">${escapeHTML(p.tag)}</span>` : ""}
         <div class="card__media">
-          <img src="${escapeHTML(imgSrc)}" alt="${escapeHTML(p.name)}" loading="lazy" width="600" height="600" onerror="this.src='img/phones/18promax-black.webp'">
+          <img src="${escapeHTML(imgSrc)}" alt="${escapeHTML(p.name)}" loading="lazy" width="600" height="600">
         </div>
         <div class="card__body">
           <h3>${escapeHTML(p.name)}</h3>
@@ -126,12 +134,27 @@ function renderGridItems(phones, gridContainer, COLORS) {
 
 const dialog = $("#detail");
 const viewer = createViewer($("#viewer"));
+// Formas de pago: el texto "label" va en el mensaje de WhatsApp y "note" se muestra bajo las opciones
 const PAYMENTS = {
-  contraentrega: { label: "contra entrega", note: "Pagas al recibir. Antes de pagar puedes revisar que la caja esté sellada y que el equipo sea el que pediste." },
-  transferencia: { label: "por transferencia anticipada", note: "Te enviamos los datos de pago solo desde este WhatsApp oficial, a nombre del vendedor." },
+  entrega: {
+    label: "en persona en el punto de entrega",
+    note: "Pagas al recibir el equipo. Antes de pagar revisas que la caja esté sellada y que modelo, color e IMEI coincidan con tu pedido.",
+  },
+  tarjeta: {
+    label: "con tarjeta",
+    note: "Crédito o débito, con datáfono en la entrega o con un enlace de pago seguro que enviamos solo desde este WhatsApp oficial.",
+  },
+  transferencia: {
+    label: "por transferencia bancaria",
+    note: "Te enviamos los datos de la cuenta solo desde este WhatsApp oficial. Nunca pedimos pagos a cuentas de terceros.",
+  },
+  recogida: {
+    label: "recogiendo y pagando en persona",
+    note: "Acordamos el punto y la hora por WhatsApp. Revisas el equipo con calma y pagas ahí mismo.",
+  },
 };
 
-const state = { phone: null, color: null, storage: null, payment: "contraentrega" };
+const state = { phone: null, color: null, storage: null, payment: "entrega" };
 
 function openDetail(id) {
   const allPhones = getPhones();
@@ -226,7 +249,7 @@ function updateDetail(animate = true) {
   $("#detailWhatsapp").href = whatsappLink(
     `Hola! Me interesa el ${phone.name} ${storage} color ${colorObj.name} (${condition})` +
       (price ? ` por ${formatCOP(price)}` : "") +
-      `. Quiero pagar ${PAYMENTS[state.payment].label}. ¿Está disponible?`
+      `. Forma de pago: ${PAYMENTS[state.payment].label}. ¿Está disponible?`
   );
 }
 
@@ -234,6 +257,11 @@ function whatsappLink(text) {
   const base = WHATSAPP_NUMBER ? `https://wa.me/${WHATSAPP_NUMBER}` : "https://wa.me/";
   return `${base}?text=${encodeURIComponent(text)}`;
 }
+
+// Botones de cotización (sección Contáctanos y botón flotante)
+document.querySelectorAll("[data-quote-link]").forEach((link) => {
+  link.href = whatsappLink("Hola! Quiero cotizar un iPhone. ¿Me ayudan con precio y disponibilidad?");
+});
 
 function closeDetail() {
   dialog.classList.add("is-closing");

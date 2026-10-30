@@ -277,6 +277,100 @@ img { display: block; max-width: 100%; }
 }
 .empty__title { margin: 0 0 8px; color: var(--label); font-size: 1.5rem; font-weight: 700; }
 
+/* ---------- Contáctanos ---------- */
+
+.contact { max-width: 1200px; margin: 0 auto; padding: 0 16px 72px; }
+.contact__card {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  align-items: center;
+  gap: 32px;
+  padding: 40px 48px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #f5f5f7 0%, #eef7f1 100%);
+}
+.contact__eyebrow {
+  margin: 0 0 6px;
+  color: #1a8f4c;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.contact h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.5rem, 3.4vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.contact__lead { margin: 0 0 18px; color: var(--label-2); font-size: 1.0625rem; max-width: 46ch; }
+.contact__points { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-weight: 500; }
+.contact__points li { display: flex; align-items: center; gap: 8px; }
+.contact__points svg { flex: none; color: #1a8f4c; }
+.contact__action { display: flex; flex-direction: column; align-items: stretch; gap: 10px; text-align: center; }
+.btn-whatsapp--lg { min-height: 60px; margin: 0; font-size: 1.125rem; border-radius: 18px; box-shadow: 0 10px 30px -10px rgba(37, 211, 102, 0.6); }
+/* Las reglas del botón del detalle no aplican aquí */
+.contact__action .btn-whatsapp { flex: none; max-width: none; padding: 0 24px; }
+.contact__number { margin: 0; color: var(--label-2); font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+@media (max-width: 767px) {
+  .contact { padding-bottom: 96px; }
+  .contact__card { grid-template-columns: 1fr; gap: 24px; padding: 28px 20px; border-radius: 24px; }
+  .contact__lead { font-size: 1rem; }
+}
+
+/* Botón flotante de WhatsApp: vidrio líquido (deja ver el fondo, desenfocado) */
+.wa-fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  color: #111113;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 10px 30px -8px rgba(0, 0, 0, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -6px 12px -6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s, background 0.25s;
+  animation: rise 0.6s 0.8s var(--ease) both;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wa-fab { background: rgba(255, 255, 255, 0.92); }
+}
+.wa-fab:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.1));
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 34px -8px rgba(0, 0, 0, 0.32),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -6px 12px -6px rgba(0, 0, 0, 0.12);
+}
+.wa-fab:active { transform: scale(0.96); }
+.wa-fab__label { display: none; }
+@media (min-width: 768px) {
+  .wa-fab { width: auto; height: 56px; padding: 0 24px 0 18px; }
+  .wa-fab__label { display: inline; font-size: 1rem; }
+}
+/* No tapa el detalle del producto */
+body.no-scroll .wa-fab { opacity: 0; pointer-events: none; }
+/* Espacio para que el botón flotante no tape los enlaces del pie */
+.footer { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+
 /* ---------- Footer ---------- */
 
 .footer {
@@ -472,24 +566,29 @@ img { display: block; max-width: 100%; }
 }
 .storage button.is-active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 
-.payment { display: flex; gap: 10px; margin-bottom: 8px; }
+.payment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
 .payment button {
-  flex: 1;
-  max-width: 200px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 10px 14px;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 12px;
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 14px;
   background: #fff;
   text-align: left;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+.payment svg { flex: none; color: var(--label-2); transition: color 0.2s; }
+.payment span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 .payment strong { font-size: 0.9375rem; }
 .payment small { color: var(--label-2); font-size: 0.8125rem; }
 .payment button.is-active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.payment button.is-active svg { color: var(--accent); }
+@media (max-width: 360px) {
+  .payment button { padding: 10px; gap: 8px; }
+  .payment svg { width: 20px; height: 20px; }
+}
 .payment__note { margin: 0 0 24px; color: var(--label-2); font-size: 0.8125rem; line-height: 1.4; }
 
 .sheet__legal { margin: 10px 0 0; color: var(--label-3); font-size: 0.75rem; text-align: center; }
@@ -659,6 +758,18 @@ img { display: block; max-width: 100%; }
 }
 .legal__card dt { color: var(--label-2); font-size: 0.875rem; }
 .legal__card dd { margin: 0; font-weight: 600; word-break: break-word; }
+.legal__pay { display: grid; gap: 12px; margin-top: 16px; }
+.legal__pay section {
+  padding: 16px 20px 14px;
+  border: 1px solid var(--separator);
+  border-radius: 16px;
+  background: #fff;
+}
+.legal__pay h3 { margin: 0 0 6px; font-size: 1.0625rem; letter-spacing: -0.01em; }
+.legal__pay ul { margin: 0; }
+@media (min-width: 720px) {
+  .legal__pay { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .legal__note { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--separator); }
 @media (max-width: 480px) {
   .legal__card { grid-template-columns: 1fr; gap: 2px; }

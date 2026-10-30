@@ -43,7 +43,7 @@ El visor 3D del detalle (girar el celular arrastrando) está en [`js/viewer.js`]
 
 ## Páginas legales
 
-- `/terminos/`: Términos y Condiciones (precios, pago contra entrega, envíos, retracto, garantía, marcas).
+- `/terminos/`: Términos y Condiciones (precios, formas de pago, entregas, garantía, marcas).
 - `/privacidad/`: Política de Tratamiento de Datos Personales (Ley 1581 de 2012).
 
 Los datos del negocio (nombre, WhatsApp, correo) se editan en `BUSINESS` dentro de [`js/catalog.js`](js/catalog.js). El correo aparece en las páginas solo cuando se completa. Haz revisar los textos con un abogado antes de usarlos como definitivos.
@@ -51,3 +51,11 @@ Los datos del negocio (nombre, WhatsApp, correo) se editan en `BUSINESS` dentro 
 ## Panel de administración
 
 El panel está en `/admin/`. No tiene enlace desde el catálogo público; las credenciales se entregan aparte en el PDF de acceso.
+
+## Seguridad
+
+- Cabeceras de seguridad en [`vercel.json`](vercel.json): política de contenido (CSP) que solo permite código del propio sitio, HTTPS obligatorio (HSTS), bloqueo de iframes (clickjacking), `nosniff` y permisos del navegador desactivados. El panel `/admin/` no se indexa ni se guarda en caché.
+- Las páginas no usan código en línea (`onclick`, `onerror`, `<script>` sin archivo) para que la CSP pueda ser estricta. Mantén esa regla al editar.
+- `.env` nunca se sube a GitHub, y `.vercelignore` evita publicar `scripts/` y archivos locales.
+- Login con contraseña cifrada (scrypt), cookie `HttpOnly`/`Secure`/`SameSite=Strict`, verificación de origen y bloqueo de 15 minutos tras 8 intentos fallidos.
+- La contraseña inicial `admin` / `admin123` es pública en este repositorio: cámbiala desde el panel en el primer ingreso.

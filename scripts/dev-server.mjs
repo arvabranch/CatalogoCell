@@ -6,6 +6,21 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+// Aplica las mismas cabeceras de seguridad de vercel.json para probar en local
+const HEADER_RULES = JSON.parse(await readFile(join(ROOT, "vercel.json"), "utf8")).headers.map((rule) => ({
+  pattern: new RegExp(`^${rule.source.replace(/\(\.\*\)/g, ".*")}$`),
+  headers: Object.fromEntries(rule.headers.map((h) => [h.key.toLowerCase(), h.value])),
+}));
+const securityHeaders = (path) => {
+  const headers = Object.assign({}, ...HEADER_RULES.filter((rule) => rule.pattern.test(path)).map((rule) => rule.headers));
+  // En local no hay HTTPS: se omite lo que obliga a usarlo
+  delete headers["strict-transport-security"];
+  if (headers["content-security-policy"]) {
+    headers["content-security-policy"] = headers["content-security-policy"].replace(/;\s*upgrade-insecure-requests/, "");
+  }
+  return headers;
+};
 const PORT = Number(process.env.PORT) || 5173;
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
@@ -34,7 +49,7 @@ async function handleApi(req, res, url) {
     body: ["GET", "HEAD"].includes(req.method) ? undefined : body,
   });
   const response = await handler(request);
-  const headers = Object.fromEntries(response.headers);
+  const headers = { ...securityHeaders(url.pathname), ...Object.fromEntries(response.headers) };
   const cookies = response.headers.getSetCookie();
   if (cookies.length) headers["set-cookie"] = cookies;
   res.writeHead(response.status, headers);
@@ -47,7 +62,7 @@ async function handleStatic(res, url) {
   let file = join(ROOT, path);
   try {
     if ((await stat(file)).isDirectory()) file = join(file, "index.html");
-    res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" });
+    res.writeHead(200, { "cache-control": "no-store", ...securityHeaders(url.pathname), "content-type": TYPES[extname(file)] || "application/octet-stream" });
     res.end(await readFile(file));
   } catch {
     send(res, 404, "No encontrado");

@@ -1,0 +1,6 @@
+# Herramientas locales: no se publican en el sitio
+scripts/
+.claude/
+.env
+.env.*
+*.pdf

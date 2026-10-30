@@ -14,6 +14,14 @@ import {
   updatePhone,
 } from "./storage.js";
 
+// Si una foto no carga, muestra la de respaldo (sin código en el HTML, por la política de seguridad)
+document.addEventListener("error", (event) => {
+  const img = event.target;
+  if (img.tagName !== "IMG" || img.dataset.fallback) return;
+  img.dataset.fallback = "1";
+  img.src = "img/phones/18promax-black.webp";
+}, true);
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const escapeHTML = (value = "") => String(value).replace(/[&<>"']/g, (char) => ({
@@ -139,7 +147,7 @@ function renderProducts() {
             ${phone.tag ? `<span class="badge-tag">${escapeHTML(phone.tag)}</span>` : ""}
             <span class="badge-condition ${phone.condition === "used" ? "is-used" : ""}">${phone.condition === "used" ? "Usado" : "Nuevo"}</span>
           </div>
-          <img class="product-admin-card__img" src="${escapeHTML(image)}" alt="${escapeHTML(phone.name)}" loading="lazy" onerror="this.src='img/phones/18promax-black.webp'">
+          <img class="product-admin-card__img" src="${escapeHTML(image)}" alt="${escapeHTML(phone.name)}" loading="lazy">
         </div>
         <div class="product-admin-card__body">
           <h2 class="product-admin-card__title">${escapeHTML(phone.name)}</h2>
