@@ -247,9 +247,9 @@
             <label>Imagen del Producto</label>
             <div class="form-row" style="margin-bottom: 8px;">
               <select id="prod-img-source-type">
+                <option value="upload">Subir foto desde el equipo o celular</option>
                 <option value="gallery">Seleccionar de Galería existente</option>
                 <option value="url">Ingresar URL directa (https://...)</option>
-                <option value="upload">Subir imagen desde equipo</option>
               </select>
             </div>
 
@@ -265,7 +265,26 @@
 
             <!-- Opción Upload -->
             <div id="box-img-upload" class="form-group" hidden>
-              <input type="file" id="prod-img-file" accept="image/*">
+              <label class="upload-drop" id="upload-drop" for="prod-img-file">
+                <input type="file" id="prod-img-file" accept="image/png,image/webp,image/jpeg,image/heic,image/heif">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+                <span class="upload-drop__title">Toca para elegir una foto o arrástrala aquí</span>
+                <span class="upload-drop__meta">PNG, WEBP o JPG · se optimiza automáticamente</span>
+                <span class="upload-drop__file" id="upload-file-name" hidden></span>
+              </label>
+
+              <div class="upload-tips">
+                <p class="upload-tips__title">Recomendaciones para la foto</p>
+                <ul>
+                  <li><strong>Fondo transparente (PNG/WEBP) o blanco liso</strong>, sin objetos, manos ni reflejos.</li>
+                  <li><strong>Formato cuadrado</strong> (1:1), mínimo <strong>1000 × 1000 px</strong>.</li>
+                  <li>El celular <strong>centrado y completo</strong>, ocupando cerca del 80% de la foto.</li>
+                  <li>Ideal: <strong>espalda y frente</strong> juntos, como las fotos del catálogo.</li>
+                  <li>Buena luz natural, sin sombras fuertes ni filtros.</li>
+                  <li>Una foto por color. En usados, foto del equipo exacto que se vende, mostrando su estado real.</li>
+                </ul>
+              </div>
+              <p class="upload-warning" id="upload-warning" hidden></p>
             </div>
 
             <!-- Preview -->
@@ -287,7 +306,7 @@
               </button>
             </div>
             <p style="font-size: 0.78rem; color: var(--admin-text-muted); margin: 0 0 8px;">
-              El catálogo suma automáticamente el margen comercial ($300.000 COP) al precio mostrado al cliente.
+              El catálogo suma automáticamente el margen comercial (<span data-margin-label>$200.000</span> COP) al precio mostrado al cliente.
             </p>
             <div id="variants-list-container" class="variants-list"></div>
           </div>

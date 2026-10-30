@@ -1,5 +1,6 @@
 import { getPhones, getAllColors, resolvePhoneImage, MARGIN } from "./storage.js";
 import { createViewer } from "./viewer.js";
+import { WHATSAPP_NUMBER } from "./catalog.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const formatCOP = (n) => "$" + n.toLocaleString("es-CO");
@@ -209,6 +210,17 @@ function updateDetail(animate = true) {
 
   const price = priceFor(phone, storage, color);
   $("#detailPrice").textContent = price ? formatCOP(price) : "Consultar";
+
+  const condition = phone.condition === "used" ? "usado" : "nuevo";
+  $("#detailWhatsapp").href = whatsappLink(
+    `Hola! Me interesa el ${phone.name} ${storage} color ${colorObj.name} (${condition})` +
+      (price ? ` por ${formatCOP(price)}` : "") + ". ¿Está disponible?"
+  );
+}
+
+function whatsappLink(text) {
+  const base = WHATSAPP_NUMBER ? `https://wa.me/${WHATSAPP_NUMBER}` : "https://wa.me/";
+  return `${base}?text=${encodeURIComponent(text)}`;
 }
 
 function closeDetail() {

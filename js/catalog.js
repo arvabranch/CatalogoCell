@@ -2,7 +2,10 @@
 // Cada variante: capacidad, colores a los que aplica el precio y precio en COP.
 
 // Valor que se suma a todos los precios de la lista antes de mostrarlos.
-export const MARGIN = 300000;
+export const MARGIN = 200000;
+
+// Número que recibe los pedidos por WhatsApp: indicativo 57 + celular, sin "+" ni espacios.
+export const WHATSAPP_NUMBER = "573176777750";
 
 export const COLORS = {
   black:        { name: "Negro",          hex: "#2b2b2d" },

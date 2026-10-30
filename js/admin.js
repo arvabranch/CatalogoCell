@@ -248,8 +248,10 @@ function resetProductForm() {
   renderCoverOptions();
   renderGallery();
   renderVariants([]);
-  $("#prod-img-source-type").value = "gallery";
-  $("#img-preview").src = $("#prod-gallery-select").value || "img/phones/18promax-black.webp";
+  $("#prod-img-source-type").value = "upload";
+  $("#img-preview").src = "img/phones/18promax-black.webp";
+  $("#upload-file-name").hidden = true;
+  $("#upload-warning").hidden = true;
   updateImageSourceVisibility();
 }
 
@@ -303,14 +305,14 @@ function compressImage(file) {
     reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
     reader.onload = () => {
       const image = new Image();
-      image.onerror = () => reject(new Error("El archivo de imagen no es válido."));
+      image.onerror = () => reject(new Error("No se pudo abrir la foto. Usa PNG, WEBP o JPG (las fotos HEIC del iPhone pueden no abrirse en todos los navegadores)."));
       image.onload = () => {
         const scale = Math.min(1, 1000 / Math.max(image.width, image.height));
         const canvas = document.createElement("canvas");
         canvas.width = Math.max(1, Math.round(image.width * scale));
         canvas.height = Math.max(1, Math.round(image.height * scale));
         canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/webp", 0.82));
+        resolve({ data: canvas.toDataURL("image/webp", 0.82), width: image.width, height: image.height });
       };
       image.src = reader.result;
     };
@@ -462,16 +464,56 @@ $("#prod-cover").addEventListener("change", () => {
 $("#prod-img-source-type").addEventListener("change", updateImageSourceVisibility);
 $("#prod-gallery-select").addEventListener("change", updateImagePreview);
 $("#prod-img-url").addEventListener("input", updateImagePreview);
-$("#prod-img-file").addEventListener("change", async (event) => {
+document.querySelectorAll("[data-margin-label]").forEach((el) => (el.textContent = formatCOP(MARGIN)));
+
+// Revisa la foto contra las recomendaciones y avisa sin bloquear
+function photoWarnings({ width, height }) {
+  const warnings = [];
+  if (Math.min(width, height) < 800) {
+    warnings.push(`La foto es pequeña (${width} × ${height} px) y puede verse borrosa. Recomendado: mínimo 1000 × 1000 px.`);
+  }
+  if (Math.max(width, height) / Math.min(width, height) > 1.25) {
+    warnings.push("La foto no es cuadrada; en el catálogo quedará con espacios a los lados. Recomendado: formato 1:1.");
+  }
+  return warnings;
+}
+
+async function handlePhotoFile(file) {
   uploadedImageData = "";
-  const file = event.target.files?.[0];
+  $("#upload-warning").hidden = true;
+  $("#upload-file-name").hidden = true;
   if (!file) return;
   try {
-    uploadedImageData = await compressImage(file);
+    const result = await compressImage(file);
+    uploadedImageData = result.data;
+    $("#upload-file-name").textContent = `✓ ${file.name}`;
+    $("#upload-file-name").hidden = false;
+    const warnings = photoWarnings(result);
+    if (warnings.length) {
+      $("#upload-warning").textContent = warnings.join(" ");
+      $("#upload-warning").hidden = false;
+    }
     updateImagePreview();
   } catch (error) {
     showToast(error.message || "No se pudo cargar la imagen.", true);
   }
+}
+
+$("#prod-img-file").addEventListener("change", (event) => handlePhotoFile(event.target.files?.[0]));
+
+const uploadDrop = $("#upload-drop");
+["dragenter", "dragover"].forEach((type) =>
+  uploadDrop.addEventListener(type, (event) => {
+    event.preventDefault();
+    uploadDrop.classList.add("is-dragover");
+  })
+);
+["dragleave", "drop"].forEach((type) =>
+  uploadDrop.addEventListener(type, () => uploadDrop.classList.remove("is-dragover"))
+);
+uploadDrop.addEventListener("drop", (event) => {
+  event.preventDefault();
+  handlePhotoFile(event.dataTransfer.files?.[0]);
 });
 
 $("#btn-reset-catalog").addEventListener("click", () => {

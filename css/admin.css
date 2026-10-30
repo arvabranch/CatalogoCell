@@ -54,6 +54,9 @@ body.admin-modal-open { overflow: hidden; }
    VISTA DE LOGIN
    ========================================================================== */
 
+/* Que el atributo hidden gane sobre cualquier display de las vistas */
+[hidden] { display: none !important; }
+
 .login-wrapper {
   display: flex;
   min-height: 100vh;
@@ -680,13 +683,79 @@ body.admin-modal-open { overflow: hidden; }
   margin-top: 8px;
 }
 .image-preview-thumb {
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   border-radius: var(--admin-radius-sm);
   object-fit: contain;
   background: #ffffff;
   border: 1px solid var(--admin-border);
   padding: 4px;
+}
+
+/* Subida de foto */
+.form-group .upload-drop {
+  position: relative;
+  display: flex;
+  margin-bottom: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 16px;
+  border: 2px dashed #c7d2fe;
+  border-radius: var(--admin-radius);
+  background: #f5f8ff;
+  color: var(--admin-primary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-drop:hover,
+.upload-drop.is-dragover { border-color: var(--admin-primary); background: #eaf2ff; }
+.upload-drop input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.upload-drop:focus-within { outline: 2px solid var(--admin-primary); outline-offset: 2px; }
+.upload-drop__title { color: var(--admin-text-main); font-weight: 600; font-size: 0.9375rem; }
+.upload-drop__meta { color: var(--admin-text-muted); font-size: 0.8125rem; }
+.upload-drop__file {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--admin-success);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-tips {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--admin-radius-sm);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.upload-tips__title { margin: 0 0 4px; font-weight: 700; color: #92400e; }
+.upload-tips ul { margin: 0; padding-left: 18px; }
+.upload-tips li + li { margin-top: 2px; }
+
+.upload-warning {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--admin-radius-sm);
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8125rem;
 }
 
 /* Variants table editor */
